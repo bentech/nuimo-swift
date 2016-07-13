@@ -9,7 +9,7 @@
 //  of the MIT license.  See the LICENSE file for details.
 
 public class NuimoGestureEvent: NSObject {
-    public var gesture: NuimoGesture = .Undefined
+    public var gesture: NuimoGesture = .undefined
     public var value: Int?
     
     public init(gesture: NuimoGesture, value: Int?) {

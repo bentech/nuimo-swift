@@ -19,9 +19,9 @@ import CoreBluetooth
 */
 public class BLEDevice: NSObject {
     /// Maximum interval between two advertising packages. If the OS doesn't receive a successive advertisement package after that interval the device is assumed to be unreachable and thus will invalidates. If not overridden, this interval defaults to `nil`, meaning that the device will never be assumed invalid, even in case the OS doesn't receive any more advertising packages.
-    public class var maxAdvertisingPackageInterval: NSTimeInterval? { get { return nil } }
+    public class var maxAdvertisingPackageInterval: TimeInterval? { get { return nil } }
     /// Interval after that a connection attempt will be considered timed out. If a connection attempt times out, `didFailToConnect` will be called.
-    public class var connectionTimeoutInterval: NSTimeInterval { return 5.0 }
+    public class var connectionTimeoutInterval: TimeInterval { return 5.0 }
 
     public let uuid: String
     public var serviceUUIDs: [CBUUID] { get { return [] } }
@@ -32,8 +32,8 @@ public class BLEDevice: NSObject {
     public var reconnectsWhenFirstConnectionAttemptFails = false
 
     private var discoveryManager: BLEDiscoveryManager?
-    private var advertisingTimeoutTimer: NSTimer?
-    private var connectionTimeoutTimer: NSTimer?
+    private var advertisingTimeoutTimer: Timer?
+    private var connectionTimeoutTimer: Timer?
     private var reconnectOnConnectionFailure = false
 
     /// Convenience initializer that takes a BLEDiscoveryManager instead of a CBCentralManager. This initializer allows to detect that the device has disappeared by checking if the OS didn't receive any more advertising packages.
@@ -49,11 +49,11 @@ public class BLEDevice: NSObject {
         super.init()
     }
 
-    public func didAdvertise(advertisementData: [String: AnyObject], RSSI: NSNumber, willReceiveSuccessiveAdvertisingData: Bool) {
+    public func didAdvertise(_ advertisementData: [String: AnyObject], RSSI: NSNumber, willReceiveSuccessiveAdvertisingData: Bool) {
         // Invalidate device if it stops advertising after a given interval of not sending any other advertising packages. Works only if `discoveryManager` known.
         advertisingTimeoutTimer?.invalidate()
-        if let maxAdvertisingPackageInterval = self.dynamicType.maxAdvertisingPackageInterval where peripheral.state == .Disconnected && willReceiveSuccessiveAdvertisingData {
-            advertisingTimeoutTimer = NSTimer.scheduledTimerWithTimeInterval(maxAdvertisingPackageInterval, target: self, selector: #selector(didDisappear), userInfo: nil, repeats: false)
+        if let maxAdvertisingPackageInterval = self.dynamicType.maxAdvertisingPackageInterval where peripheral.state == .disconnected && willReceiveSuccessiveAdvertisingData {
+            advertisingTimeoutTimer = Timer.scheduledTimer(timeInterval: maxAdvertisingPackageInterval, target: self, selector: #selector(didDisappear), userInfo: nil, repeats: false)
         }
     }
 
@@ -62,11 +62,11 @@ public class BLEDevice: NSObject {
     }
 
     public func connect() -> Bool {
-        guard peripheral.state == .Disconnected else { return false }
+        guard peripheral.state == .disconnected else { return false }
         advertisingTimeoutTimer?.invalidate()
-        centralManager.connectPeripheral(peripheral, options: nil)
+        centralManager.connect(peripheral, options: nil)
         connectionTimeoutTimer?.invalidate()
-        connectionTimeoutTimer = NSTimer.scheduledTimerWithTimeInterval(self.dynamicType.connectionTimeoutInterval, target: self, selector: #selector(self.didConnectTimeout), userInfo: nil, repeats: false)
+        connectionTimeoutTimer = Timer.scheduledTimer(timeInterval: self.dynamicType.connectionTimeoutInterval, target: self, selector: #selector(self.didConnectTimeout), userInfo: nil, repeats: false)
         reconnectOnConnectionFailure = reconnectsWhenFirstConnectionAttemptFails
         return true
     }
@@ -80,10 +80,10 @@ public class BLEDevice: NSObject {
     public func didConnectTimeout() {
         centralManager.cancelPeripheralConnection(peripheral)
         // CoreBluetooth doesn't call didFailToConnectPeripheral delegate method – that's why we call it here
-        centralManager.delegate?.centralManager?(centralManager, didFailToConnectPeripheral: peripheral, error: NSError(domain: "BLEDevice", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to connect to peripheral", NSLocalizedFailureReasonErrorKey: "Connection attempt timed out"]))
+        centralManager.delegate?.centralManager?(centralManager, didFailToConnect: peripheral, error: NSError(domain: "BLEDevice", code: 0, userInfo: [NSLocalizedDescriptionKey: "Failed to connect to peripheral", NSLocalizedFailureReasonErrorKey: "Connection attempt timed out"]))
     }
 
-    public func didFailToConnect(error: NSError?) {
+    public func didFailToConnect(_ error: NSError?) {
         if reconnectsWhenFirstConnectionAttemptFails && reconnectOnConnectionFailure {
             connect()
             reconnectOnConnectionFailure = false
@@ -96,12 +96,12 @@ public class BLEDevice: NSObject {
     }
 
     public func disconnect() -> Bool {
-        guard peripheral.state == .Connected else { return false }
+        guard peripheral.state == .connected else { return false }
         centralManager.cancelPeripheralConnection(peripheral)
         return true
     }
 
-    public func didDisconnect(error: NSError?) {
+    public func didDisconnect(_ error: NSError?) {
     }
 
     @objc internal func invalidate() {
@@ -117,26 +117,26 @@ public class BLEDevice: NSObject {
 }
 
 extension BLEDevice: CBPeripheralDelegate {
-    @objc public func peripheral(peripheral: CBPeripheral, didDiscoverServices error: NSError?) {
+    @objc public func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: NSError?) {
         peripheral.services?
-            .flatMap{ ($0, charactericUUIDsForServiceUUID[$0.UUID]) }
-            .forEach{ peripheral.discoverCharacteristics($0.1, forService: $0.0) }
+            .flatMap{ ($0, charactericUUIDsForServiceUUID[$0.uuid]) }
+            .forEach{ peripheral.discoverCharacteristics($0.1, for: $0.0) }
     }
 
-    @objc public func peripheral(peripheral: CBPeripheral, didDiscoverCharacteristicsForService service: CBService, error: NSError?) {
+    @objc public func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: NSError?) {
         service.characteristics?.forEach{ characteristic in
-            if notificationCharacteristicUUIDs.contains(characteristic.UUID) {
-                peripheral.setNotifyValue(true, forCharacteristic: characteristic)
+            if notificationCharacteristicUUIDs.contains(characteristic.uuid) {
+                peripheral.setNotifyValue(true, for: characteristic)
             }
         }
     }
 
-    @objc public func peripheral(peripheral: CBPeripheral, didUpdateValueForCharacteristic characteristic: CBCharacteristic, error: NSError?) {
+    @objc public func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: NSError?) {
     }
 
-    @objc public func peripheral(peripheral: CBPeripheral, didUpdateNotificationStateForCharacteristic characteristic: CBCharacteristic, error: NSError?) {
+    @objc public func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: NSError?) {
     }
 
-    @objc public func peripheral(peripheral: CBPeripheral, didWriteValueForCharacteristic characteristic: CBCharacteristic, error: NSError?) {
+    @objc public func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: NSError?) {
     }
 }

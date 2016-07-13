@@ -28,7 +28,7 @@ public class BLEDiscoveryManager: NSObject {
     }
 
     /// If detectUnreachableDevices is set to true, it will invalidate devices if they stop advertising. Consumes more energy since `CBCentralManagerScanOptionAllowDuplicatesKey` is set to true.
-    public func startDiscovery(discoverServiceUUIDs: [CBUUID], detectUnreachableDevices: Bool = false) {
+    public func startDiscovery(_ discoverServiceUUIDs: [CBUUID], detectUnreachableDevices: Bool = false) {
         discovery.startDiscovery(discoverServiceUUIDs, detectUnreachableDevices: detectUnreachableDevices)
     }
 
@@ -36,17 +36,17 @@ public class BLEDiscoveryManager: NSObject {
         discovery.stopDiscovery()
     }
 
-    internal func invalidateDevice(device: BLEDevice) {
+    internal func invalidateDevice(_ device: BLEDevice) {
         discovery.invalidateDevice(device)
     }
 }
 
 public protocol BLEDiscoveryManagerDelegate {
-    func bleDiscoveryManager(discovery: BLEDiscoveryManager, deviceWithPeripheral peripheral: CBPeripheral, advertisementData: [String : AnyObject]?) -> BLEDevice?
+    func bleDiscoveryManager(_ discovery: BLEDiscoveryManager, deviceWithPeripheral peripheral: CBPeripheral, advertisementData: [String : AnyObject]?) -> BLEDevice?
 
-    func bleDiscoveryManager(discovery: BLEDiscoveryManager, didDiscoverDevice device: BLEDevice)
+    func bleDiscoveryManager(_ discovery: BLEDiscoveryManager, didDiscoverDevice device: BLEDevice)
 
-    func bleDiscoveryManager(discovery: BLEDiscoveryManager, didRestoreDevice device: BLEDevice)
+    func bleDiscoveryManager(_ discovery: BLEDiscoveryManager, didRestoreDevice device: BLEDevice)
 }
 
 /**
@@ -69,19 +69,19 @@ private class BLEDiscoveryManagerPrivate: NSObject, CBCentralManagerDelegate {
         super.init()
     }
 
-    func startDiscovery(discoverServiceUUIDs: [CBUUID], detectUnreachableDevices: Bool) {
+    func startDiscovery(_ discoverServiceUUIDs: [CBUUID], detectUnreachableDevices: Bool) {
         self.discoverServiceUUIDs = discoverServiceUUIDs
         self.detectUnreachableDevices = detectUnreachableDevices
         self.shouldStartDiscoveryWhenPowerStateTurnsOn = true
 
-        guard centralManager.state == .PoweredOn else { return }
+        guard centralManager.state == .poweredOn else { return }
         startDiscovery()
     }
 
     func startDiscovery() {
         var options = self.options
         options[CBCentralManagerScanOptionAllowDuplicatesKey] = detectUnreachableDevices
-        centralManager.scanForPeripheralsWithServices(discoverServiceUUIDs, options: options)
+        centralManager.scanForPeripherals(withServices: discoverServiceUUIDs, options: options)
     }
 
     func stopDiscovery() {
@@ -89,24 +89,24 @@ private class BLEDiscoveryManagerPrivate: NSObject, CBCentralManagerDelegate {
         shouldStartDiscoveryWhenPowerStateTurnsOn = false
     }
 
-    func invalidateDevice(device: BLEDevice) {
+    func invalidateDevice(_ device: BLEDevice) {
         device.invalidate()
         // Remove all peripherals associated with controller (there should be only one)
         deviceForPeripheral
             .filter{ $0.1 == device }
-            .forEach { deviceForPeripheral.removeValueForKey($0.0) }
+            .forEach { deviceForPeripheral.removeValue(forKey: $0.0) }
     }
 
-    @objc func centralManager(central: CBCentralManager, willRestoreState state: [String : AnyObject]) {
+    @objc func centralManager(_ central: CBCentralManager, willRestoreState state: [String : AnyObject]) {
         //TODO: Should work on OSX as well. http://stackoverflow.com/q/33210078/543875
         #if os(iOS)
             restoredConnectedPeripherals = (state[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral])?.filter{ $0.state == .Connected }
         #endif
     }
 
-    @objc func centralManagerDidUpdateState(central: CBCentralManager) {
+    @objc func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
-        case .PoweredOn:
+        case .poweredOn:
             restoredConnectedPeripherals?.forEach{ centralManager(central, didRestorePeripheral: $0) }
             restoredConnectedPeripherals = nil
             // When bluetooth turned on and discovery start had already been triggered before, start discovery now
@@ -119,7 +119,7 @@ private class BLEDiscoveryManagerPrivate: NSObject, CBCentralManagerDelegate {
         }
     }
 
-    @objc func centralManager(central: CBCentralManager, didDiscoverPeripheral peripheral: CBPeripheral, advertisementData: [String : AnyObject], RSSI: NSNumber) {
+    @objc func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : AnyObject], rssi RSSI: NSNumber) {
         // Prevent devices from being discovered multiple times. iOS devices in peripheral role are also discovered multiple times.
         var device: BLEDevice?
         if let knownDevice = deviceForPeripheral[peripheral] {
@@ -135,24 +135,24 @@ private class BLEDiscoveryManagerPrivate: NSObject, CBCentralManagerDelegate {
         device?.didAdvertise(advertisementData, RSSI: RSSI, willReceiveSuccessiveAdvertisingData: detectUnreachableDevices)
     }
 
-    func centralManager(central: CBCentralManager, didRestorePeripheral peripheral: CBPeripheral) {
+    func centralManager(_ central: CBCentralManager, didRestorePeripheral peripheral: CBPeripheral) {
         guard let device = discovery.delegate?.bleDiscoveryManager(discovery, deviceWithPeripheral: peripheral, advertisementData: nil) else { return }
         deviceForPeripheral[peripheral] = device
         device.didRestore()
         discovery.delegate?.bleDiscoveryManager(discovery, didRestoreDevice: device)
     }
 
-    @objc func centralManager(central: CBCentralManager, didConnectPeripheral peripheral: CBPeripheral) {
+    @objc func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         guard let device = self.deviceForPeripheral[peripheral] else { return }
         device.didConnect()
     }
 
-    @objc func centralManager(central: CBCentralManager, didFailToConnectPeripheral peripheral: CBPeripheral, error: NSError?) {
+    @objc func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: NSError?) {
         guard let device = self.deviceForPeripheral[peripheral] else { return }
         device.didFailToConnect(error)
     }
 
-    @objc func centralManager(central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: NSError?) {
+    @objc func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: NSError?) {
         guard let device = self.deviceForPeripheral[peripheral] else { return }
         device.didDisconnect(error)
         invalidateDevice(device)

@@ -10,28 +10,28 @@
 
 @objc public enum NuimoGesture : Int {
     case
-    Undefined = 0, // TODO: Do we really need this enum value? We don't need to handle an "undefined" gesture
-    ButtonPress,
-    ButtonDoublePress,
-    ButtonRelease,
-    Rotate,
-    TouchLeftDown,
-    TouchLeftRelease,
-    TouchRightDown,
-    TouchRightRelease,
-    TouchTopDown,
-    TouchTopRelease,
-    TouchBottomDown,
-    TouchBottomRelease,
-    SwipeLeft,
-    SwipeRight,
-    SwipeUp,
-    SwipeDown,
-    FlyLeft,
-    FlyRight,
-    FlyBackwards,
-    FlyTowards,
-    FlyUpDown
+    undefined = 0, // TODO: Do we really need this enum value? We don't need to handle an "undefined" gesture
+    buttonPress,
+    buttonDoublePress,
+    buttonRelease,
+    rotate,
+    touchLeftDown,
+    touchLeftRelease,
+    touchRightDown,
+    touchRightRelease,
+    touchTopDown,
+    touchTopRelease,
+    touchBottomDown,
+    touchBottomRelease,
+    swipeLeft,
+    swipeRight,
+    swipeUp,
+    swipeDown,
+    flyLeft,
+    flyRight,
+    flyBackwards,
+    flyTowards,
+    flyUpDown
     
     public init?(identifier: String) {
         guard let gesture = gestureForIdentifier[identifier] else { return nil }
@@ -50,33 +50,33 @@
     public var swipeGesture: NuimoGesture? { return swipeGestureForTouchGesture[self] }
 }
 
-public enum NuimoGestureError: ErrorType {
-    case InvalidIdentifier
+public enum NuimoGestureError: ErrorProtocol {
+    case invalidIdentifier
 }
 
 private let identifierForGesture: [NuimoGesture : String] = [
-    .Undefined          : "Undefined",
-    .ButtonPress        : "ButtonPress",
-    .ButtonRelease      : "ButtonRelease",
-    .ButtonDoublePress  : "ButtonDoublePress",
-    .Rotate             : "Rotate",
-    .TouchLeftDown      : "TouchLeftDown",
-    .TouchLeftRelease   : "TouchLeftRelease",
-    .TouchRightDown     : "TouchRightDown",
-    .TouchRightRelease  : "TouchRightRelease",
-    .TouchTopDown       : "TouchTopDown",
-    .TouchTopRelease    : "TouchTopRelease",
-    .TouchBottomDown    : "TouchBottomDown",
-    .TouchBottomRelease : "TouchBottomRelease",
-    .SwipeLeft          : "SwipeLeft",
-    .SwipeRight         : "SwipeRight",
-    .SwipeUp            : "SwipeUp",
-    .SwipeDown          : "SwipeDown",
-    .FlyLeft            : "FlyLeft",
-    .FlyRight           : "FlyRight",
-    .FlyBackwards       : "FlyBackwards",
-    .FlyTowards         : "FlyTowards",
-    .FlyUpDown          : "FlyUpDown"
+    .undefined          : "Undefined",
+    .buttonPress        : "ButtonPress",
+    .buttonRelease      : "ButtonRelease",
+    .buttonDoublePress  : "ButtonDoublePress",
+    .rotate             : "Rotate",
+    .touchLeftDown      : "TouchLeftDown",
+    .touchLeftRelease   : "TouchLeftRelease",
+    .touchRightDown     : "TouchRightDown",
+    .touchRightRelease  : "TouchRightRelease",
+    .touchTopDown       : "TouchTopDown",
+    .touchTopRelease    : "TouchTopRelease",
+    .touchBottomDown    : "TouchBottomDown",
+    .touchBottomRelease : "TouchBottomRelease",
+    .swipeLeft          : "SwipeLeft",
+    .swipeRight         : "SwipeRight",
+    .swipeUp            : "SwipeUp",
+    .swipeDown          : "SwipeDown",
+    .flyLeft            : "FlyLeft",
+    .flyRight           : "FlyRight",
+    .flyBackwards       : "FlyBackwards",
+    .flyTowards         : "FlyTowards",
+    .flyUpDown          : "FlyUpDown"
 ]
 
 private let gestureForIdentifier: [String : NuimoGesture] = {
@@ -88,46 +88,46 @@ private let gestureForIdentifier: [String : NuimoGesture] = {
 }()
 
 private let touchDownGestureForTouchGesture: [NuimoGesture : NuimoGesture] = [
-    .TouchLeftDown      : .TouchLeftDown,
-    .TouchLeftRelease   : .TouchLeftDown,
-    .TouchRightDown     : .TouchRightDown,
-    .TouchRightRelease  : .TouchRightDown,
-    .TouchTopDown       : .TouchTopDown,
-    .TouchTopRelease    : .TouchTopDown,
-    .TouchBottomDown    : .TouchBottomDown,
-    .TouchBottomRelease : .TouchBottomDown,
-    .SwipeLeft          : .TouchLeftDown,
-    .SwipeRight         : .TouchRightDown,
-    .SwipeUp            : .TouchTopDown,
-    .SwipeDown          : .TouchBottomDown,
+    .touchLeftDown      : .touchLeftDown,
+    .touchLeftRelease   : .touchLeftDown,
+    .touchRightDown     : .touchRightDown,
+    .touchRightRelease  : .touchRightDown,
+    .touchTopDown       : .touchTopDown,
+    .touchTopRelease    : .touchTopDown,
+    .touchBottomDown    : .touchBottomDown,
+    .touchBottomRelease : .touchBottomDown,
+    .swipeLeft          : .touchLeftDown,
+    .swipeRight         : .touchRightDown,
+    .swipeUp            : .touchTopDown,
+    .swipeDown          : .touchBottomDown,
 ]
 
 private let touchReleaseGestureForTouchGesture: [NuimoGesture : NuimoGesture] = [
-    .TouchLeftDown      : .TouchLeftRelease,
-    .TouchLeftRelease   : .TouchLeftRelease,
-    .TouchRightDown     : .TouchRightRelease,
-    .TouchRightRelease  : .TouchRightRelease,
-    .TouchTopDown       : .TouchTopRelease,
-    .TouchTopRelease    : .TouchTopRelease,
-    .TouchBottomDown    : .TouchBottomRelease,
-    .TouchBottomRelease : .TouchBottomRelease,
-    .SwipeLeft          : .TouchLeftRelease,
-    .SwipeRight         : .TouchRightRelease,
-    .SwipeUp            : .TouchTopRelease,
-    .SwipeDown          : .TouchBottomRelease,
+    .touchLeftDown      : .touchLeftRelease,
+    .touchLeftRelease   : .touchLeftRelease,
+    .touchRightDown     : .touchRightRelease,
+    .touchRightRelease  : .touchRightRelease,
+    .touchTopDown       : .touchTopRelease,
+    .touchTopRelease    : .touchTopRelease,
+    .touchBottomDown    : .touchBottomRelease,
+    .touchBottomRelease : .touchBottomRelease,
+    .swipeLeft          : .touchLeftRelease,
+    .swipeRight         : .touchRightRelease,
+    .swipeUp            : .touchTopRelease,
+    .swipeDown          : .touchBottomRelease,
 ]
 
 private let swipeGestureForTouchGesture: [NuimoGesture : NuimoGesture] = [
-    .TouchLeftDown      : .SwipeLeft,
-    .TouchLeftRelease   : .SwipeLeft,
-    .TouchRightDown     : .SwipeRight,
-    .TouchRightRelease  : .SwipeRight,
-    .TouchTopDown       : .SwipeUp,
-    .TouchTopRelease    : .SwipeUp,
-    .TouchBottomDown    : .SwipeDown,
-    .TouchBottomRelease : .SwipeDown,
-    .SwipeLeft          : .SwipeLeft,
-    .SwipeRight         : .SwipeRight,
-    .SwipeUp            : .SwipeUp,
-    .SwipeDown          : .SwipeDown,
+    .touchLeftDown      : .swipeLeft,
+    .touchLeftRelease   : .swipeLeft,
+    .touchRightDown     : .swipeRight,
+    .touchRightRelease  : .swipeRight,
+    .touchTopDown       : .swipeUp,
+    .touchTopRelease    : .swipeUp,
+    .touchBottomDown    : .swipeDown,
+    .touchBottomRelease : .swipeDown,
+    .swipeLeft          : .swipeLeft,
+    .swipeRight         : .swipeRight,
+    .swipeUp            : .swipeUp,
+    .swipeDown          : .swipeDown,
 ]

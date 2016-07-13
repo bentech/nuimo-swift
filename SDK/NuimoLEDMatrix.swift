@@ -23,9 +23,9 @@ public class NuimoLEDMatrix: NSObject {
     public init(string: String) {
         leds = string
             // Cut off after count of LEDs
-            .substringToIndex(string.startIndex.advancedBy(min(string.characters.count, NuimoLEDMatrixLEDCount)))
+            .substring(to: string.characters.index(string.startIndex, offsetBy: min(string.characters.count, NuimoLEDMatrixLEDCount)))
             // Right fill up to count of LEDs
-            .stringByPaddingToLength(NuimoLEDMatrixLEDCount, withString: " ", startingAtIndex: 0)
+            .padding(toLength: NuimoLEDMatrixLEDCount, withPad: " ", startingAt: 0)
             .characters
             .map{!NuimoLEDMatrixLEDOffCharacters.contains($0)}
     }
@@ -33,7 +33,7 @@ public class NuimoLEDMatrix: NSObject {
     //TODO: Have only one init(progress) method and pass presentation style as 2nd argument
     public convenience init(progressWithVerticalBar progress: Double) {
         let string = (0..<9)
-            .reverse()
+            .reversed()
             .map{progress > Double($0) / 9.0 ? "   ...   " : "         "}
             .reduce("", combine: +)
         self.init(string: string)
@@ -42,11 +42,11 @@ public class NuimoLEDMatrix: NSObject {
     public convenience init(progressWithVolumeBar progress: Double) {
         let width = Int(ceil(max(0.0, min(1.0, progress)) * 9))
         let string = (0..<9)
-            .map{String(count: 9 - ($0 + 1), repeatedValue: Character(" ")) + String(count: $0 + 1, repeatedValue: Character("."))}
-            .enumerate()
+            .map{String(repeating: Character(" "), count: 9 - ($0 + 1)) + String(repeating: Character("."), count: $0 + 1)}
+            .enumerated()
             .map{$0.element
-                .substringToIndex($0.element.startIndex.advancedBy(width))
-                .stringByPaddingToLength(9, withString: " ", startingAtIndex: 0)}
+                .substring(to: $0.element.characters.index($0.element.startIndex, offsetBy: width))
+                .padding(toLength: 9, withPad: " ", startingAt: 0)}
             .reduce("", combine: +)
         self.init(string: string)
     }

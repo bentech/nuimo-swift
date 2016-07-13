@@ -13,12 +13,12 @@ import CoreBluetooth
 // Represents a bluetooth low energy (BLE) Nuimo controller
 //TODO: Internalize CBPeripheralDelegate implementation
 public class NuimoBluetoothController: BLEDevice, NuimoController {
-    public override class var connectionTimeoutInterval: NSTimeInterval { return 5.0 }
-    public override class var maxAdvertisingPackageInterval: NSTimeInterval? { return 5.0 }
+    public override class var connectionTimeoutInterval: TimeInterval { return 5.0 }
+    public override class var maxAdvertisingPackageInterval: TimeInterval? { return 5.0 }
 
     public var delegate: NuimoControllerDelegate?
-    public private(set) dynamic var connectionState = NuimoConnectionState.Disconnected
-    public var defaultMatrixDisplayInterval: NSTimeInterval = 2.0
+    public private(set) dynamic var connectionState = NuimoConnectionState.disconnected
+    public var defaultMatrixDisplayInterval: TimeInterval = 2.0
     public var matrixBrightness: Float = 1.0 { didSet { matrixWriter?.brightness = self.matrixBrightness } }
 
     public override var serviceUUIDs: [CBUUID] { get { return nuimoServiceUUIDs } }
@@ -26,7 +26,7 @@ public class NuimoBluetoothController: BLEDevice, NuimoController {
     public override var notificationCharacteristicUUIDs: [CBUUID] { get { return nuimoNotificationCharacteristicnUUIDs } }
 
     private var matrixWriter: LEDMatrixWriter?
-    private var connectTimeoutTimer: NSTimer?
+    private var connectTimeoutTimer: Timer?
 
     public required init(centralManager: CBCentralManager, uuid: String, peripheral: CBPeripheral) {
         super.init(centralManager: centralManager, uuid: uuid, peripheral: peripheral)
@@ -35,7 +35,7 @@ public class NuimoBluetoothController: BLEDevice, NuimoController {
 
     public override func connect() -> Bool {
         guard super.connect() else { return false }
-        setConnectionState(.Connecting)
+        setConnectionState(.connecting)
         return true
     }
 
@@ -45,70 +45,70 @@ public class NuimoBluetoothController: BLEDevice, NuimoController {
         //TODO: When the matrix characteristic is being found, didConnect() is fired. But if matrix characteristic is not found, didFailToConnect() should be fired instead!
     }
 
-    public override func didFailToConnect(error: NSError?) {
+    public override func didFailToConnect(_ error: NSError?) {
         super.didFailToConnect(error)
-        setConnectionState(.Disconnected, withError: error)
+        setConnectionState(.disconnected, withError: error)
     }
 
     public override func disconnect() -> Bool {
         guard super.disconnect() else { return false }
-        setConnectionState(.Disconnecting)
+        setConnectionState(.disconnecting)
         return true
     }
 
-    public override func didDisconnect(error: NSError?) {
+    public override func didDisconnect(_ error: NSError?) {
         super.didDisconnect(error)
         matrixWriter = nil
-        setConnectionState(.Disconnected, withError: error)
+        setConnectionState(.disconnected, withError: error)
     }
 
     public override func didInvalidate() {
         super.didInvalidate()
-        setConnectionState(.Invalidated)
+        setConnectionState(.invalidated)
     }
 
-    private func setConnectionState(state: NuimoConnectionState, withError error: NSError? = nil) {
+    private func setConnectionState(_ state: NuimoConnectionState, withError error: NSError? = nil) {
         guard state != connectionState else { return }
         connectionState = state
         delegate?.nuimoController?(self, didChangeConnectionState: connectionState, withError: error)
     }
 
     //TODO: Rename to displayMatrix
-    public func writeMatrix(matrix: NuimoLEDMatrix, interval: NSTimeInterval, options: Int) {
+    public func writeMatrix(_ matrix: NuimoLEDMatrix, interval: TimeInterval, options: Int) {
         matrixWriter?.writeMatrix(matrix, interval: interval, options: options)
     }
 }
 
 extension NuimoBluetoothController /* CBPeripheralDelegate */ {
-    public override func peripheral(peripheral: CBPeripheral, didDiscoverCharacteristicsForService service: CBService, error: NSError?) {
-        super.peripheral(peripheral, didDiscoverCharacteristicsForService: service, error: error)
+    public override func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: NSError?) {
+        super.peripheral(peripheral, didDiscoverCharacteristicsFor: service, error: error)
         service.characteristics?.forEach{ characteristic in
-            switch characteristic.UUID {
+            switch characteristic.uuid {
             case kFirmwareVersionCharacteristicUUID:
-                peripheral.readValueForCharacteristic(characteristic)
+                peripheral.readValue(for: characteristic)
             case kBatteryCharacteristicUUID:
-                peripheral.readValueForCharacteristic(characteristic)
+                peripheral.readValue(for: characteristic)
             case kLEDMatrixCharacteristicUUID:
                 matrixWriter = LEDMatrixWriter(peripheral: peripheral, matrixCharacteristic: characteristic, brightness: matrixBrightness)
-                setConnectionState(.Connected)
+                setConnectionState(.connected)
             default:
                 break
             }
         }
     }
 
-    public override func peripheral(peripheral: CBPeripheral, didUpdateValueForCharacteristic characteristic: CBCharacteristic, error: NSError?) {
-        super.peripheral(peripheral, didUpdateValueForCharacteristic: characteristic, error: error)
+    public override func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: NSError?) {
+        super.peripheral(peripheral, didUpdateValueFor: characteristic, error: error)
 
         guard let data = characteristic.value else { return }
 
-        switch characteristic.UUID {
+        switch characteristic.uuid {
         case kFirmwareVersionCharacteristicUUID:
-            if let firmwareVersion = String(data: data, encoding: NSUTF8StringEncoding) {
+            if let firmwareVersion = String(data: data, encoding: String.Encoding.utf8) {
                 delegate?.nuimoController?(self, didReadFirmwareVersion: firmwareVersion)
             }
         case kBatteryCharacteristicUUID:
-            delegate?.nuimoController?(self, didUpdateBatteryLevel: Int(UnsafePointer<UInt8>(data.bytes).memory))
+            delegate?.nuimoController?(self, didUpdateBatteryLevel: Int(UnsafePointer<UInt8>((data as NSData).bytes).pointee))
         default:
             if let event = characteristic.nuimoGestureEvent() {
                 delegate?.nuimoController?(self, didReceiveGestureEvent: event)
@@ -116,9 +116,9 @@ extension NuimoBluetoothController /* CBPeripheralDelegate */ {
         }
     }
 
-    public override func peripheral(peripheral: CBPeripheral, didWriteValueForCharacteristic characteristic: CBCharacteristic, error: NSError?) {
-        super.peripheral(peripheral, didWriteValueForCharacteristic: characteristic, error: error)
-        if characteristic.UUID == kLEDMatrixCharacteristicUUID {
+    public override func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: NSError?) {
+        super.peripheral(peripheral, didWriteValueFor: characteristic, error: error)
+        if characteristic.uuid == kLEDMatrixCharacteristicUUID {
             matrixWriter?.didRetrieveMatrixWriteResponse()
             delegate?.nuimoControllerDidDisplayLEDMatrix?(self)
         }
@@ -133,14 +133,14 @@ private class LEDMatrixWriter {
     var brightness: Float
 
     private var currentMatrix: NuimoLEDMatrix?
-    private var currentMatrixDisplayInterval: NSTimeInterval = 0.0
+    private var currentMatrixDisplayInterval: TimeInterval = 0.0
     private var currentMatrixWithFadeTransition = false
     private var lastWrittenMatrix: NuimoLEDMatrix?
-    private var lastWrittenMatrixDate = NSDate(timeIntervalSince1970: 0.0)
-    private var lastWrittenMatrixDisplayInterval: NSTimeInterval = 0.0
+    private var lastWrittenMatrixDate = Date(timeIntervalSince1970: 0.0)
+    private var lastWrittenMatrixDisplayInterval: TimeInterval = 0.0
     private var isWaitingForMatrixWriteResponse = false
     private var writeMatrixOnWriteResponseReceived = false
-    private var writeMatrixResponseTimeoutTimer: NSTimer?
+    private var writeMatrixResponseTimeoutTimer: Timer?
 
     init(peripheral: CBPeripheral, matrixCharacteristic: CBCharacteristic, brightness: Float) {
         self.peripheral = peripheral
@@ -148,10 +148,10 @@ private class LEDMatrixWriter {
         self.brightness = brightness
     }
 
-    func writeMatrix(matrix: NuimoLEDMatrix, interval: NSTimeInterval, options: Int) {
-        let resendsSameMatrix  = options & NuimoLEDMatrixWriteOption.IgnoreDuplicates.rawValue     == 0
-        let withFadeTransition = options & NuimoLEDMatrixWriteOption.WithFadeTransition.rawValue   != 0
-        let withWriteResponse  = options & NuimoLEDMatrixWriteOption.WithoutWriteResponse.rawValue == 0
+    func writeMatrix(_ matrix: NuimoLEDMatrix, interval: TimeInterval, options: Int) {
+        let resendsSameMatrix  = options & NuimoLEDMatrixWriteOption.ignoreDuplicates.rawValue     == 0
+        let withFadeTransition = options & NuimoLEDMatrixWriteOption.withFadeTransition.rawValue   != 0
+        let withWriteResponse  = options & NuimoLEDMatrixWriteOption.withoutWriteResponse.rawValue == 0
 
         guard
             resendsSameMatrix ||
@@ -171,23 +171,23 @@ private class LEDMatrixWriter {
         }
     }
 
-    private func writeMatrixNow(withWriteResponse: Bool) {
+    private func writeMatrixNow(_ withWriteResponse: Bool) {
         guard var matrixBytes = currentMatrix?.matrixBytes where matrixBytes.count == 11 && !(withWriteResponse && isWaitingForMatrixWriteResponse) else { fatalError("Invalid matrix write request") }
 
         matrixBytes[10] = matrixBytes[10] + (currentMatrixWithFadeTransition ? UInt8(1 << 4) : 0)
         matrixBytes += [UInt8(min(max(brightness, 0.0), 1.0) * 255), UInt8(currentMatrixDisplayInterval * 10.0)]
-        peripheral.writeValue(NSData(bytes: matrixBytes, length: matrixBytes.count), forCharacteristic: matrixCharacteristic, type: withWriteResponse ? .WithResponse : .WithoutResponse)
+        peripheral.writeValue(Data(bytes: UnsafePointer<UInt8>(matrixBytes), count: matrixBytes.count), for: matrixCharacteristic, type: withWriteResponse ? .withResponse : .withoutResponse)
 
         isWaitingForMatrixWriteResponse  = withWriteResponse
         lastWrittenMatrix                = currentMatrix
-        lastWrittenMatrixDate            = NSDate()
+        lastWrittenMatrixDate            = Date()
         lastWrittenMatrixDisplayInterval = currentMatrixDisplayInterval
 
         if withWriteResponse {
             // When the matrix write response is not retrieved within 500ms we assume the response to have timed out
-            dispatch_async(dispatch_get_main_queue()) {
+            DispatchQueue.main.async {
                 self.writeMatrixResponseTimeoutTimer?.invalidate()
-                self.writeMatrixResponseTimeoutTimer = NSTimer.scheduledTimerWithTimeInterval(0.5, target: self, selector: #selector(self.didRetrieveMatrixWriteResponse), userInfo: nil, repeats: false)
+                self.writeMatrixResponseTimeoutTimer = Timer.scheduledTimer(timeInterval: 0.5, target: self, selector: #selector(self.didRetrieveMatrixWriteResponse), userInfo: nil, repeats: false)
             }
         }
     }
@@ -195,7 +195,7 @@ private class LEDMatrixWriter {
     @objc func didRetrieveMatrixWriteResponse() {
         guard isWaitingForMatrixWriteResponse else { return }
         isWaitingForMatrixWriteResponse = false
-        dispatch_async(dispatch_get_main_queue()) {
+        DispatchQueue.main.async {
             self.writeMatrixResponseTimeoutTimer?.invalidate()
         }
 
@@ -253,30 +253,30 @@ private let nuimoNotificationCharacteristicnUUIDs = [
 //MARK: Initializers for NuimoGestureEvents from BLE GATT data
 
 private extension NuimoGestureEvent {
-    convenience init(gattFlyData data: NSData) {
-        let bytes = UnsafePointer<UInt8>(data.bytes)
-        let directionByte = bytes.memory
-        let speedByte = bytes.advancedBy(1).memory
+    convenience init(gattFlyData data: Data) {
+        let bytes = UnsafePointer<UInt8>((data as NSData).bytes)
+        let directionByte = bytes.pointee
+        let speedByte = bytes.advanced(by: 1).pointee
         print("direction byte: \(directionByte)")
         print("speed byte: \(speedByte)")
         //TODO: When firmware bug is fixed fallback to .Undefined gesture
-        let gesture: NuimoGesture = [0 : .FlyLeft, 1 : .FlyRight, 2 : .FlyBackwards, 3 : .FlyTowards, 4 : .FlyUpDown][directionByte] ?? .FlyRight //.Undefined
-        self.init(gesture: gesture, value: gesture == .FlyUpDown ? Int(speedByte) : nil)
+        let gesture: NuimoGesture = [0 : .flyLeft, 1 : .flyRight, 2 : .flyBackwards, 3 : .flyTowards, 4 : .flyUpDown][directionByte] ?? .flyRight //.Undefined
+        self.init(gesture: gesture, value: gesture == .flyUpDown ? Int(speedByte) : nil)
     }
 
-    convenience init(gattTouchData data: NSData) {
-        let bytes = UnsafePointer<UInt8>(data.bytes)
+    convenience init(gattTouchData data: Data) {
+        let bytes = UnsafePointer<UInt8>((data as NSData).bytes)
         let gesture: NuimoGesture = {
-            if data.length == 1 {
-                return [0 : .SwipeLeft, 1 : .SwipeRight, 2 : .SwipeUp, 3 : .SwipeDown][bytes.memory] ?? .Undefined
+            if data.count == 1 {
+                return [0 : .swipeLeft, 1 : .swipeRight, 2 : .swipeUp, 3 : .swipeDown][bytes.pointee] ?? .undefined
             }
             else {
                 //TODO: This is for the previous firmware version. Remove when we have no devices anymore running the old firmware.
-                let bytes = UnsafePointer<Int16>(data.bytes)
-                let buttonByte = bytes.memory
-                let eventByte = bytes.advancedBy(1).memory
+                let bytes = UnsafePointer<Int16>((data as NSData).bytes)
+                let buttonByte = bytes.pointee
+                let eventByte = bytes.advanced(by: 1).pointee
                 for i: Int16 in 0...7 where (1 << i) & buttonByte != 0 {
-                    let touchDownGesture: NuimoGesture = [.TouchLeftDown, .TouchTopDown, .TouchRightDown, .TouchBottomDown][Int(i / 2)]
+                    let touchDownGesture: NuimoGesture = [.touchLeftDown, .touchTopDown, .touchRightDown, .touchBottomDown][Int(i / 2)]
                     if let eventGesture: NuimoGesture = {
                             switch eventByte {
                             case 1:  return touchDownGesture.self
@@ -287,22 +287,22 @@ private extension NuimoGestureEvent {
                         return eventGesture
                     }
                 }
-                return .Undefined
+                return .undefined
             }
         }()
 
         self.init(gesture: gesture, value: nil)
     }
 
-    convenience init(gattRotationData data: NSData) {
-        let value = Int(UnsafePointer<Int16>(data.bytes).memory)
-        self.init(gesture: .Rotate, value: value)
+    convenience init(gattRotationData data: Data) {
+        let value = Int(UnsafePointer<Int16>((data as NSData).bytes).pointee)
+        self.init(gesture: .rotate, value: value)
     }
 
-    convenience init(gattButtonData data: NSData) {
-        let value = Int(UnsafePointer<UInt8>(data.bytes).memory)
+    convenience init(gattButtonData data: Data) {
+        let value = Int(UnsafePointer<UInt8>((data as NSData).bytes).pointee)
         //TODO: Evaluate double press events
-        self.init(gesture: value == 1 ? .ButtonPress : .ButtonRelease, value: value)
+        self.init(gesture: value == 1 ? .buttonPress : .buttonRelease, value: value)
     }
 }
 
@@ -313,26 +313,26 @@ private extension NuimoLEDMatrix {
         return leds
             .chunk(8)
             .map{ $0
-                .enumerate()
+                .enumerated()
                 .map{(i: Int, b: Bool) -> Int in return b ? 1 << i : 0}
                 .reduce(UInt8(0), combine: {(s: UInt8, v: Int) -> UInt8 in s + UInt8(v)})
         }
     }
 }
 
-private extension SequenceType {
-    func chunk(n: Int) -> [[Generator.Element]] {
-        var chunks: [[Generator.Element]] = []
-        var chunk: [Generator.Element] = []
+private extension Sequence {
+    func chunk(_ n: Int) -> [[Iterator.Element]] {
+        var chunks: [[Iterator.Element]] = []
+        var chunk: [Iterator.Element] = []
         chunk.reserveCapacity(n)
-        chunks.reserveCapacity(underestimateCount() / n)
+        chunks.reserveCapacity(underestimatedCount / n)
         var i = n
         self.forEach {
             chunk.append($0)
             i -= 1
             if i == 0 {
                 chunks.append(chunk)
-                chunk.removeAll(keepCapacity: true)
+                chunk.removeAll(keepingCapacity: true)
                 i = n
             }
         }
@@ -347,7 +347,7 @@ private extension CBCharacteristic {
     func nuimoGestureEvent() -> NuimoGestureEvent? {
         guard let data = value else { return nil }
 
-        switch UUID {
+        switch uuid {
         case kSensorFlyCharacteristicUUID:      return NuimoGestureEvent(gattFlyData: data)
         case kSensorTouchCharacteristicUUID:    return NuimoGestureEvent(gattTouchData: data)
         case kSensorRotationCharacteristicUUID: return NuimoGestureEvent(gattRotationData: data)
